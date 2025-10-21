@@ -31,13 +31,24 @@ namespace Game.Domain
 
         public UserEntity GetOrCreateByLogin(string login)
         {
-            if (userCollection.Find(x => x.Login == login).Any())
-                return userCollection.Find(x => x.Login == login).FirstOrDefault();
-            
-            var newUser = new UserEntity(Guid.NewGuid()) {Login = login};
-            userCollection.InsertOne(newUser);
-            
-            return newUser;
+            while (true)
+            {
+                var existing = userCollection.Find(x => x.Login == login).FirstOrDefault();
+                if (existing != null)
+                    return existing;
+
+                var newUser = new UserEntity(Guid.NewGuid()) { Login = login };
+
+                try
+                {
+                    userCollection.InsertOne(newUser);
+                    return newUser;
+                }
+                catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+                {
+                    
+                }
+            }
         }
 
         public void Update(UserEntity user)
